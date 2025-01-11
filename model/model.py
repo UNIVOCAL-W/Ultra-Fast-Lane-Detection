@@ -58,7 +58,7 @@ class parsingNet(torch.nn.Module):
             initialize_weights(self.aux_header2,self.aux_header3,self.aux_header4,self.aux_combine)
 
         self.cls = torch.nn.Sequential(
-            torch.nn.Linear(1800, 2048),
+            torch.nn.Linear(392, 2048), # was torch.nn.Linear(1800, 2048) # 392
             torch.nn.ReLU(),
             torch.nn.Linear(2048, self.total_dim),
         )
@@ -73,7 +73,7 @@ class parsingNet(torch.nn.Module):
     def forward(self, x):
         # n c h w - > n 2048 sh sw
         # -> n 2048
-        x2,x3,fea = self.model(x)
+        x2,x3,fea = self.model(x) # self.model = resnet(backbone, pretrained=pretrained)
         if self.use_aux:
             x2 = self.aux_header2(x2)
             x3 = self.aux_header3(x3)
@@ -85,7 +85,7 @@ class parsingNet(torch.nn.Module):
         else:
             aux_seg = None
 
-        fea = self.pool(fea).view(-1, 1800)
+        fea = self.pool(fea).view(-1, 392)  #was fea = self.pool(fea).view(-1, 1800) # 392
 
         group_cls = self.cls(fea).view(-1, *self.cls_dim)
 

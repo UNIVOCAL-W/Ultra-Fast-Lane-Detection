@@ -3,7 +3,7 @@ import numpy as np
 
 import torchvision.transforms as transforms
 import data.mytransforms as mytransforms
-from data.constant import tusimple_row_anchor, culane_row_anchor
+from data.constant import tusimple_row_anchor, culane_row_anchor, LindenLane_row_anchor, bismarck_row_anchor
 from data.dataset import LaneClsDataset, LaneTestDataset
 
 def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distributed, num_lanes):
@@ -11,6 +11,7 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distr
         mytransforms.FreeScaleMask((288, 800)),
         mytransforms.MaskToTensor(),
     ])
+    # foto size/8
     segment_transform = transforms.Compose([
         mytransforms.FreeScaleMask((36, 100)),
         mytransforms.MaskToTensor(),
@@ -20,14 +21,31 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distr
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
     ])
+    # neu for linden map
+    img_transform_linden = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+    ])
+
+    target_transform_linden = transforms.Compose([
+        mytransforms.FreeScaleMask((224, 224)),
+        mytransforms.MaskToTensor(),
+    ])
+    # foto size/8
+    segment_transform_linden = transforms.Compose([
+        mytransforms.FreeScaleMask((28, 28)),
+        mytransforms.MaskToTensor(),
+    ])
+
     simu_transform = mytransforms.Compose2([
         mytransforms.RandomRotate(6),
-        mytransforms.RandomUDoffsetLABEL(100),
-        mytransforms.RandomLROffsetLABEL(200)
+        mytransforms.RandomUDoffsetLABEL(100), # up and down in px
+        mytransforms.RandomLROffsetLABEL(200) # left and right in px
     ])
     if dataset == 'CULane':
         train_dataset = LaneClsDataset(data_root,
-                                           os.path.join(data_root, 'list/train_gt.txt'),
+                                           os.path.join(data_root, 'list/train_gt_small.txt'),
                                            img_transform=img_transform, target_transform=target_transform,
                                            simu_transform = simu_transform,
                                            segment_transform=segment_transform, 
@@ -44,6 +62,24 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distr
                                            row_anchor = tusimple_row_anchor,
                                            segment_transform=segment_transform,use_aux=use_aux, num_lanes = num_lanes)
         cls_num_per_lane = 56
+    elif dataset == 'LindenLane' :
+        train_dataset = LaneClsDataset(data_root,
+                                           os.path.join(data_root, 'train_list.txt'), ## 要改
+                                           img_transform=img_transform_linden, target_transform=target_transform_linden,
+                                           simu_transform = simu_transform,
+                                           segment_transform=segment_transform_linden, 
+                                           row_anchor = LindenLane_row_anchor,
+                                           griding_num=griding_num, use_aux=use_aux, num_lanes = num_lanes)
+        cls_num_per_lane = 8
+    elif dataset == 'bismarck' :
+        train_dataset = LaneClsDataset(data_root,
+                                           os.path.join(data_root, 'train_list.txt'), ## 要改
+                                           img_transform=img_transform_linden, target_transform=target_transform_linden,
+                                           simu_transform = simu_transform,
+                                           segment_transform=segment_transform_linden, 
+                                           row_anchor = bismarck_row_anchor,
+                                           griding_num=griding_num, use_aux=use_aux, num_lanes = num_lanes)
+        cls_num_per_lane = 13
     else:
         raise NotImplementedError
 
@@ -56,25 +92,48 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distr
 
     return train_loader, cls_num_per_lane
 
-def get_test_loader(batch_size, data_root,dataset, distributed):
-    img_transforms = transforms.Compose([
+def get_test_loader(batch_size, data_root, griding_num, dataset, use_aux, distributed, num_lanes):
+    img_transform = transforms.Compose([
         transforms.Resize((288, 800)),
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
     ])
+
+    # neu for linden map
+    img_transform_linden = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+    ])
+
     if dataset == 'CULane':
-        test_dataset = LaneTestDataset(data_root,os.path.join(data_root, 'list/test.txt'),img_transform = img_transforms)
+        test_dataset = LaneClsDataset(data_root,
+                                           os.path.join(data_root, 'list/test.txt'),
+                                           img_transform=img_transform,  
+                                           row_anchor = culane_row_anchor,
+                                           griding_num=griding_num, use_aux=use_aux, num_lanes = num_lanes)
         cls_num_per_lane = 18
     elif dataset == 'Tusimple':
-        test_dataset = LaneTestDataset(data_root,os.path.join(data_root, 'test.txt'), img_transform = img_transforms)
+        test_dataset = LaneClsDataset(data_root,
+                                           os.path.join(data_root, 'test.txt'),
+                                           img_transform=img_transform,  
+                                           row_anchor = tusimple_row_anchor,
+                                           griding_num=griding_num, use_aux=use_aux, num_lanes = num_lanes)
         cls_num_per_lane = 56
+    elif dataset == 'LindenLane':
+        test_dataset = LaneClsDataset(data_root,
+                                           os.path.join(data_root, 'valid_list.txt'),
+                                           img_transform=img_transform_linden,  
+                                           row_anchor = LindenLane_row_anchor,
+                                           griding_num=griding_num, use_aux=use_aux, num_lanes = num_lanes)
+        cls_num_per_lane = 8
 
     if distributed:
         sampler = SeqDistributedSampler(test_dataset, shuffle = False)
     else:
         sampler = torch.utils.data.SequentialSampler(test_dataset)
     loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, sampler = sampler, num_workers=4)
-    return loader
+    return loader, cls_num_per_lane
 
 
 class SeqDistributedSampler(torch.utils.data.distributed.DistributedSampler):

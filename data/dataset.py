@@ -18,7 +18,8 @@ class LaneTestDataset(torch.utils.data.Dataset):
         self.img_transform = img_transform
         with open(list_path, 'r') as f:
             self.list = f.readlines()
-        self.list = [l[1:] if l[0] == '/' else l for l in self.list]  # exclude the incorrect path prefix '/' of CULane
+        self.list = [l[1:] if l[0] == '\\' else l for l in self.list]
+        # original was: self.list = [l[1:] if l[0] == '/' else l for l in self.list]  # exclude the incorrect path prefix '/' of CULane
 
 
     def __getitem__(self, index):
@@ -59,11 +60,14 @@ class LaneClsDataset(torch.utils.data.Dataset):
         l = self.list[index]
         l_info = l.split()
         img_name, label_name = l_info[0], l_info[1]
-        if img_name[0] == '/':
-            img_name = img_name[1:]
-            label_name = label_name[1:]
+        #if img_name[0] == '/':
+        img_name = img_name[1:]
+        label_name = label_name[1:]
+
 
         label_path = os.path.join(self.path, label_name)
+        #print(label_path)
+
         label = loader_func(label_path)
 
         img_path = os.path.join(self.path, img_name)
@@ -112,9 +116,17 @@ class LaneClsDataset(torch.utils.data.Dataset):
     def _get_index(self, label):
         w, h = label.size
 
-        if h != 288:
-            scale_f = lambda x : int((x * 1.0/288) * h)
+        # if h != 288:
+        #     scale_f = lambda x : int((x * 1.0/288) * h)
+        #     sample_tmp = list(map(scale_f,self.row_anchor))
+
+        #for 224
+        if h != 224:
+            scale_f = lambda x : int((x * 1.0/224) * h)
             sample_tmp = list(map(scale_f,self.row_anchor))
+        else:
+            sample_tmp = self.row_anchor
+        
 
         all_idx = np.zeros((self.num_lanes,len(sample_tmp),2))
         for i,r in enumerate(sample_tmp):

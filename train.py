@@ -13,7 +13,12 @@ from utils.common import get_work_dir, get_logger
 
 import time
 
+import matplotlib.pyplot as plt
 
+all_epoch_loss = []
+
+# cd C:\BA_Workspace\Ultra-Fast-Lane-Detection
+# C:\Users\13208\AppData\Local\Programs\Python\Python312\python.exe train.py configs/culane.py
 def inference(net, data_label, use_aux):
     if use_aux:
         img, cls_label, seg_label = data_label
@@ -54,7 +59,8 @@ def calc_loss(loss_dict, results, logger, global_step):
 
 def train(net, data_loader, loss_dict, optimizer, scheduler,logger, epoch, metric_dict, use_aux):
     net.train()
-    progress_bar = dist_tqdm(train_loader)
+    epoch_loss = []
+    progress_bar = dist_tqdm(train_loader) 
     t_data_0 = time.time()
     for b_idx, data_label in enumerate(progress_bar):
         t_data_1 = time.time()
@@ -65,6 +71,7 @@ def train(net, data_loader, loss_dict, optimizer, scheduler,logger, epoch, metri
         results = inference(net, data_label, use_aux)
 
         loss = calc_loss(loss_dict, results, logger, global_step)
+        epoch_loss.append(float(loss))
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -86,8 +93,28 @@ def train(net, data_loader, loss_dict, optimizer, scheduler,logger, epoch, metri
                                     net_time = '%.3f' % float(t_net_1 - t_net_0), 
                                     **kwargs)
         t_data_0 = time.time()
-        
+    
+    avg_loss = sum(epoch_loss) / len(epoch_loss)
+    all_epoch_loss.append(float(avg_loss))
+    
 
+
+
+def plot_loss_curve(epoch_losses):
+    """
+    绘制每个 Epoch 的平均 Loss 曲线
+    """
+    import matplotlib.pyplot as plt
+
+    plt.figure(figsize=(8, 6))
+    plt.plot(range(len(epoch_losses)), epoch_losses, marker='o', label='Average Loss per Epoch')
+    plt.xlabel('Epoch')
+    plt.ylabel('Average Loss')
+    plt.title('Average Loss per Epoch')
+    plt.legend()
+    plt.grid(True)
+    plt.savefig('all_epochs_loss_curve.png')
+    plt.show()
 
 
 
@@ -151,4 +178,5 @@ if __name__ == "__main__":
         train(net, train_loader, loss_dict, optimizer, scheduler,logger, epoch, metric_dict, cfg.use_aux)
         
         save_model(net, optimizer, epoch ,work_dir, distributed)
+    plot_loss_curve(all_epoch_loss)
     logger.close()
