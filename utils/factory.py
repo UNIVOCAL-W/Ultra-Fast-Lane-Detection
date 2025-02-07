@@ -1,4 +1,4 @@
-from utils.loss import SoftmaxFocalLoss, ParsingRelationLoss, ParsingRelationDis
+from utils.loss import SoftmaxFocalLoss, ParsingRelationLoss, ParsingRelationDis, LaneMSELoss
 from utils.metrics import MultiLabelAcc, AccTopk, Metric_mIoU
 from utils.dist_utils import DistSummaryWriter
 
@@ -29,17 +29,17 @@ def get_loss_dict(cfg):
 
     if cfg.use_aux:
         loss_dict = {
-            'name': ['cls_loss', 'relation_loss', 'aux_loss', 'relation_dis'],
-            'op': [SoftmaxFocalLoss(2), ParsingRelationLoss(), torch.nn.CrossEntropyLoss(), ParsingRelationDis()],
-            'weight': [1.0, cfg.sim_loss_w, 1.0, cfg.shp_loss_w],
-            'data_src': [('cls_out', 'cls_label'), ('cls_out',), ('seg_out', 'seg_label'), ('cls_out',)]
+            'name': ['cls_loss', 'relation_loss', 'aux_loss', 'relation_dis', 'mse_loss'],
+            'op': [SoftmaxFocalLoss(gamma = cfg.factor_gamma), ParsingRelationLoss(), torch.nn.CrossEntropyLoss(), ParsingRelationDis(), LaneMSELoss()],
+            'weight': [1.0, cfg.sim_loss_w, 1.0, cfg.shp_loss_w, cfg.mse_loss_w],
+            'data_src': [('cls_out', 'cls_label'), ('cls_out',), ('seg_out', 'seg_label'), ('cls_out',), ('cls_out', 'cls_label')]
         }
     else:
         loss_dict = {
-            'name': ['cls_loss', 'relation_loss', 'relation_dis'],
-            'op': [SoftmaxFocalLoss(2), ParsingRelationLoss(), ParsingRelationDis()],
-            'weight': [1.0, cfg.sim_loss_w, cfg.shp_loss_w],
-            'data_src': [('cls_out', 'cls_label'), ('cls_out',), ('cls_out',)]
+            'name': ['cls_loss', 'relation_loss', 'relation_dis', 'mse_loss'],
+            'op': [SoftmaxFocalLoss(gamma = cfg.factor_gamma), ParsingRelationLoss(), ParsingRelationDis(), LaneMSELoss()],
+            'weight': [1.0, cfg.sim_loss_w, cfg.shp_loss_w, cfg.mse_loss_w],
+            'data_src': [('cls_out', 'cls_label'), ('cls_out',), ('cls_out',), ('cls_out', 'cls_label')]
         }
 
     return loss_dict

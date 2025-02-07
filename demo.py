@@ -68,7 +68,7 @@ if __name__ == "__main__":
         img_w, img_h = 224, 224
         row_anchor = LindenLane_row_anchor
     elif cfg.dataset == 'bismarck':
-        splits = ['valid_list.txt']
+        splits = ['test_list.txt']
         datasets = [LaneTestDataset(cfg.data_root,os.path.join(cfg.data_root, split),img_transform = img_transforms_linden) for split in splits]
         img_w, img_h = 224, 224
         row_anchor = bismarck_row_anchor
@@ -101,15 +101,17 @@ if __name__ == "__main__":
             out_j = loc  # out_j = 0 -> no lane
             print(out_j)
 
+            colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (0, 255, 255), (255, 0, 255)]
             # import pdb; pdb.set_trace()
             vis = cv2.imread(os.path.join(cfg.data_root,names[0]))
             for i in range(out_j.shape[1]):
                 if np.sum(out_j[:, i] != 0) > 2:
+                    color = colors[i % len(colors)]
                     for k in range(out_j.shape[0]):
                         if out_j[k, i] > 0:
                             # was ppp = (int(out_j[k, i] * col_sample_w * img_w / 800) - 1, int(img_h * (row_anchor[cls_num_per_lane-1-k]/288)) - 1 )
                             ppp = (int(out_j[k, i] * col_sample_w * img_w / 224) - 1, int(img_h * (row_anchor[cls_num_per_lane-1-k]/224)) - 1 )
-                            cv2.circle(vis,ppp,5,(0,255,0),-1)
+                            cv2.circle(vis,ppp,5,color,-1)
             vout.write(vis)
         
         vout.release()

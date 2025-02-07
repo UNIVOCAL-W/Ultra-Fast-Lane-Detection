@@ -13,6 +13,8 @@ def calculate_metrics(pred_cls_label, true_cls_label, num_lanes):
     """
     计算每条车道的 TP, FP, TN, FN
     """
+
+    args, cfg = merge_config()
     tp = np.zeros(num_lanes, dtype=int)
     fp = np.zeros(num_lanes, dtype=int)
     tn = np.zeros(num_lanes, dtype=int)
@@ -22,10 +24,10 @@ def calculate_metrics(pred_cls_label, true_cls_label, num_lanes):
         pred_lane = pred_cls_label[:, lane_idx]
         true_lane = true_cls_label[:, lane_idx]
 
-        tp[lane_idx] = np.sum((true_lane > 0) & (pred_lane > 0))
-        fp[lane_idx] = np.sum((true_lane == 0) & (pred_lane > 0))
-        tn[lane_idx] = np.sum((true_lane == 0) & (pred_lane == 0))
-        fn[lane_idx] = np.sum((true_lane > 0) & (pred_lane == 0))
+        tp[lane_idx] = np.sum((np.abs(true_lane - pred_lane) < 3) & (true_lane != cfg.griding_num) & (pred_lane > 0))
+        fp[lane_idx] = np.sum((np.abs(true_lane - pred_lane) < 3) & (true_lane == cfg.griding_num) & (pred_lane > 0))
+        tn[lane_idx] = np.sum((true_lane == cfg.griding_num) & (pred_lane == 0))
+        fn[lane_idx] = np.sum((true_lane != cfg.griding_num) & (pred_lane == 0))
 
     return tp, fp, tn, fn
 
@@ -35,9 +37,9 @@ if __name__ == "__main__":
     args, cfg = merge_config()
 
     # 只关注 LindenLane 数据集
-    assert cfg.dataset == 'LindenLane', "Only LindenLane dataset is supported."
+    assert cfg.dataset == 'bismarck', "Only bismarck dataset is supported."
 
-    cls_num_per_lane = 8
+    cls_num_per_lane = 13
     net = parsingNet(pretrained=False, backbone=cfg.backbone,
                      cls_dim=(cfg.griding_num + 1, cls_num_per_lane, cfg.num_lanes),
                      use_aux=False).cuda()
@@ -52,7 +54,7 @@ if __name__ == "__main__":
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
     ])
-    dataset = LaneClsDataset(cfg.data_root, os.path.join(cfg.data_root, 'valid_list.txt'),
+    dataset = LaneClsDataset(cfg.data_root, os.path.join(cfg.data_root, 'test_list.txt'),
                              img_transform=img_transforms, griding_num=cfg.griding_num,
                              row_anchor=bismarck_row_anchor, num_lanes=cfg.num_lanes)
     loader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=False, num_workers=1)
@@ -69,7 +71,7 @@ if __name__ == "__main__":
         with torch.no_grad():
             out = net(imgs)
             out = out[0].data.cpu().numpy()
-            out = out[:, ::-1, :]  # reverse direction
+            #out = out[:, ::-1, :]  # reverse direction
             prob = scipy.special.softmax(out[:-1, :, :], axis=0)
             idx = np.arange(cfg.griding_num) + 1
             idx = idx.reshape(-1, 1, 1)
@@ -79,7 +81,9 @@ if __name__ == "__main__":
             pred_cls_label = loc.astype(int)
         
         print("true_cls_label shape:", true_cls_label.shape)
+        print(true_cls_label.squeeze(0).numpy())
         print("pred_cls_label shape:", pred_cls_label.shape)
+        print(pred_cls_label)
 
         # 计算每张图片的 TP, FP, TN, FN
         #tp, fp, tn, fn = calculate_metrics(pred_cls_label, true_cls_label.numpy(), cfg.num_lanes)

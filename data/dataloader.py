@@ -43,6 +43,13 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distr
         mytransforms.RandomUDoffsetLABEL(100), # up and down in px
         mytransforms.RandomLROffsetLABEL(200) # left and right in px
     ])
+
+    #224*224
+    simu_transform_small = mytransforms.Compose2([
+        mytransforms.RandomRotate(6),
+        mytransforms.RandomUDoffsetLABEL(25), # up and down in px
+        mytransforms.RandomLROffsetLABEL(25) # left and right in px
+    ])
     if dataset == 'CULane':
         train_dataset = LaneClsDataset(data_root,
                                            os.path.join(data_root, 'list/train_gt_small.txt'),
@@ -66,7 +73,7 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distr
         train_dataset = LaneClsDataset(data_root,
                                            os.path.join(data_root, 'train_list.txt'), ## 要改
                                            img_transform=img_transform_linden, target_transform=target_transform_linden,
-                                           simu_transform = simu_transform,
+                                           simu_transform = simu_transform_small,
                                            segment_transform=segment_transform_linden, 
                                            row_anchor = LindenLane_row_anchor,
                                            griding_num=griding_num, use_aux=use_aux, num_lanes = num_lanes)
@@ -75,7 +82,7 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distr
         train_dataset = LaneClsDataset(data_root,
                                            os.path.join(data_root, 'train_list.txt'), ## 要改
                                            img_transform=img_transform_linden, target_transform=target_transform_linden,
-                                           simu_transform = simu_transform,
+                                           simu_transform = simu_transform_small,
                                            segment_transform=segment_transform_linden, 
                                            row_anchor = bismarck_row_anchor,
                                            griding_num=griding_num, use_aux=use_aux, num_lanes = num_lanes)
@@ -92,7 +99,7 @@ def get_train_loader(batch_size, data_root, griding_num, dataset, use_aux, distr
 
     return train_loader, cls_num_per_lane
 
-def get_test_loader(batch_size, data_root, griding_num, dataset, use_aux, distributed, num_lanes):
+def get_valid_loader(batch_size, data_root, griding_num, dataset, use_aux, distributed, num_lanes):
     img_transform = transforms.Compose([
         transforms.Resize((288, 800)),
         transforms.ToTensor(),
@@ -104,6 +111,19 @@ def get_test_loader(batch_size, data_root, griding_num, dataset, use_aux, distri
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+    ])
+
+    #224*224
+    simu_transform_small = mytransforms.Compose2([
+        mytransforms.RandomRotate(6),
+        mytransforms.RandomUDoffsetLABEL(25), # up and down in px
+        mytransforms.RandomLROffsetLABEL(25) # left and right in px
+    ])
+
+    # foto size/8
+    segment_transform_linden = transforms.Compose([
+        mytransforms.FreeScaleMask((28, 28)),
+        mytransforms.MaskToTensor(),
     ])
 
     if dataset == 'CULane':
@@ -127,6 +147,16 @@ def get_test_loader(batch_size, data_root, griding_num, dataset, use_aux, distri
                                            row_anchor = LindenLane_row_anchor,
                                            griding_num=griding_num, use_aux=use_aux, num_lanes = num_lanes)
         cls_num_per_lane = 8
+
+    elif dataset == 'bismarck':
+        test_dataset = LaneClsDataset(data_root,
+                                           os.path.join(data_root, 'valid_list.txt'),#was valid
+                                           img_transform=img_transform_linden, 
+                                           #simu_transform = simu_transform_small,#之前没有
+                                           segment_transform=segment_transform_linden, 
+                                           row_anchor = bismarck_row_anchor,
+                                           griding_num=griding_num, use_aux=use_aux, num_lanes = num_lanes)
+        cls_num_per_lane = 13
 
     if distributed:
         sampler = SeqDistributedSampler(test_dataset, shuffle = False)

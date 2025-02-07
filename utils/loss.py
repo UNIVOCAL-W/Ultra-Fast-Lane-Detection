@@ -34,6 +34,8 @@ class SoftmaxFocalLoss(nn.Module):
         factor = torch.pow(1.-scores, self.gamma)
         log_score = F.log_softmax(logits, dim=1)
         log_score = factor * log_score
+        # print(log_score.shape)
+        # print(labels.shape)
         loss = self.nll(log_score, labels)
         return loss
 
@@ -72,3 +74,34 @@ class ParsingRelationDis(nn.Module):
         loss /= len(diff_list1) - 1
         return loss
 
+class LaneMSELoss(nn.Module):
+    
+    def __init__(self):
+        super(LaneMSELoss, self).__init__()
+        self.mse = torch.nn.MSELoss()
+
+    def forward(self, logits, labels):
+        prob = F.softmax(logits[:, :-1, :, :], dim=1)  # 忽略最后一通道（背景）
+        
+        griding_num = logits.shape[1] - 1  
+        idx = torch.arange(1, griding_num + 1, device=logits.device).view(1, -1, 1, 1)  # shape: [1, griding_num, 1, 1]
+
+        # Step 3: 计算横坐标位置 loc (概率加权索引)
+        loc = torch.sum(prob * idx, dim=1)  # [N, num_rows, num_lanes]
+
+        # Step 4: 计算最大概率位置 out (argmax)
+        out = torch.argmax(logits, dim=1)  # [N, num_rows, num_lanes]
+
+        # Step 5: 设置无车道点为 0
+        loc[out == griding_num] = 100  # 如果 argmax 是背景通道（最后一个通道）
+        pred_cls_label = loc
+
+        #print(pred_cls_label)
+        #print(labels)
+        
+        # 4) 计算 MSE
+        #    如果 gt_positions 是 [N, num_rows, num_cols] 则形状一致
+        #    如果是 [N, num_rows]，则需要根据实际场景处理一下 (可能不分列)
+        loss = self.mse(pred_cls_label.float(), labels.float())
+
+        return loss
